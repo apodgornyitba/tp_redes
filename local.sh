@@ -65,7 +65,12 @@ create_cluster_and_deploy() {
         build_images
         load_images
     fi
-    deploy_services
+    
+    if [ "$SKIP_DEPLOY" = true ]; then
+        print_warning "Deployment skipped"
+    else
+        deploy_services
+    fi
 
     [ "$SKIP_TESTS" = true ] && print_warning "Tests skipped" || run_e2e_tests
     [ "$SKIP_STATUS" = true ] && print_warning "Status skipped" || show_status
@@ -270,6 +275,7 @@ show_help() {
     echo "  --skip-tests         Skip running e2e tests when creating/rebuilding cluster"
     echo "  --skip-status        Skip status display when creating/rebuilding cluster"
     echo "  --skip-build         Skip building and loading docker images when creating cluster"
+    echo "  --skip-deploy        Skip deploying services when creating cluster"
     echo "  -h, --help           Show this help"
 }
 
@@ -359,6 +365,7 @@ main() {
     SKIP_TESTS=false
     SKIP_STATUS=false
     SKIP_BUILD=false
+    SKIP_DEPLOY=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -368,6 +375,7 @@ main() {
             --skip-tests) SKIP_TESTS=true; shift ;;
             --skip-status) SKIP_STATUS=true; shift ;;
             --skip-build) SKIP_BUILD=true; shift ;;
+            --skip-deploy) SKIP_DEPLOY=true; shift ;;
             -h|--help) show_help; exit 0 ;;
             *) echo "Unknown option: $1"; show_help; exit 1 ;;
         esac
