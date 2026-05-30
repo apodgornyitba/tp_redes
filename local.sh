@@ -81,8 +81,13 @@ create_cluster() {
 
     if kind get clusters | grep -q "^$CLUSTER_NAME$"; then
         print_warning "Cluster '$CLUSTER_NAME' already exists"
-        read -p "Do you want to delete and recreate it? (y/N): " -n 1 -r
-        echo
+        if [ -t 0 ]; then
+            read -p "Do you want to delete and recreate it? (y/N): " -n 1 -r
+            echo
+        else
+            print_warning "Non-interactive terminal detected. Auto-selecting NO (using existing cluster)."
+            REPLY="N"
+        fi
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Deleting existing cluster..."
             kind delete cluster --name $CLUSTER_NAME
@@ -163,8 +168,13 @@ load_images() {
 deploy_services() {
     if kubectl get namespace $NAMESPACE &> /dev/null; then
         print_warning "Namespace '$NAMESPACE' already exists"
-        read -p "Do you want to delete the namespace and all related resources? (y/N): " -n 1 -r
-        echo
+        if [ -t 0 ]; then
+            read -p "Do you want to delete the namespace and all related resources? (y/N): " -n 1 -r
+            echo
+        else
+            print_warning "Non-interactive terminal detected. Auto-selecting NO (using existing namespace)."
+            REPLY="N"
+        fi
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Deleting namespace '$NAMESPACE' and all resources..."
             kubectl delete namespace $NAMESPACE
