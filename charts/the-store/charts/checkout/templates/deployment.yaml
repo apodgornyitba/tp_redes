@@ -43,7 +43,7 @@ spec:
             readOnlyRootFilesystem: {{ .Values.securityContext.readOnlyRootFilesystem | default true }}
             runAsNonRoot: {{ .Values.securityContext.runAsNonRoot | default true }}
             runAsUser: {{ .Values.securityContext.runAsUser | default 1000 }}
-          image: "{{ .Values.image.repository }}:{{ if .Values.global }}{{ .Values.image.tag | default .Values.global.imageTag | default "latest" }}{{ else }}{{ .Values.image.tag | default "latest" }}{{ end }}"
+          image: "{{ .Values.image.repository }}:{{ if .Values.global }}{{ .Values.global.imageTag | default .Values.image.tag | default "latest" }}{{ else }}{{ .Values.image.tag | default "latest" }}{{ end }}"
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           ports:
             - name: http
