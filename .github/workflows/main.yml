@@ -108,11 +108,12 @@ jobs:
 
       - name: Create Kind Cluster and Setup Ingress
         run: |
-          # Create cluster and install Ingress controller, but skip build, load, deploy, tests
-          ./local.sh create-cluster --skip-build --skip-tests --skip-status
+          # Create cluster and install Ingress controller, but skip build, load, deploy, tests, status
+          ./local.sh create-cluster --skip-build --skip-deploy --skip-tests --skip-status
 
       - name: Pull and Load Images from GHCR
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           TAG="sha-${SHA_SHORT}"
           
@@ -130,23 +131,23 @@ jobs:
 
       - name: Deploy Services via Helm
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           TAG="sha-${SHA_SHORT}"
           
-          # Use local.sh with skip-build option to deploy using Helm and wait for availability
-          ./local.sh create-cluster --skip-build --skip-tests --skip-status -c the-store --namespace the-store
-          
-          # Force deploy with the correct commit-specific image tag
-          helm upgrade --install the-store ./charts/the-store --namespace the-store --set global.imageTag=${TAG}
+          # Deploy with Helm using the correct commit-specific image tag
+          helm upgrade --install the-store ./charts/the-store --namespace the-store --create-namespace --set global.imageTag=${TAG}
 
       - name: Wait for deployments to be ready
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           echo "Waiting for deployments..."
           kubectl wait --namespace the-store --for=condition=available deployments --timeout=300s --all
           kubectl wait --namespace the-store --for=condition=ready pods --timeout=300s --all
 
       - name: Run E2E Tests (Gatekeeper)
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           if ! ./local.sh e2e-test; then
             echo "::error::E2E Tests failed! Initiating automatic Helm rollback to protect production..."
             REVISIONS=$(helm history the-store --namespace the-store 2>/dev/null | grep -c "^[0-9]" || echo "0")
