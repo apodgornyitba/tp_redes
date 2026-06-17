@@ -204,3 +204,8 @@ jobs:
             fi
             exit 1
           fi
+
+      - name: Clean up Cypress Screenshots (Fix Permissions)
+        if: always()
+        run: |
+          docker run --rm -v $PWD:/workspace -w /workspace alpine sh -c "rm -rf src/e2e/cypress/screenshots src/e2e/cypress/videos"
