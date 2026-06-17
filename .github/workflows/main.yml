@@ -184,8 +184,10 @@ jobs:
       - name: Wait for deployments to be ready
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          echo "Waiting for deployments..."
-          kubectl wait --namespace the-store --for=condition=available deployments --timeout=300s --all
+          echo "Waiting for rollout to complete..."
+          for dep in carts catalog checkout orders ui; do
+            kubectl rollout status deployment/$dep --namespace the-store --timeout=300s
+          done
 
       - name: Run E2E Tests (Gatekeeper)
         run: |
