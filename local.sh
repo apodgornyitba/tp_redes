@@ -103,6 +103,9 @@ create_cluster() {
         cat <<EOF | kind create cluster --name $CLUSTER_NAME --config -
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/16"
 nodes:
 - role: control-plane
   kubeadmConfigPatches:

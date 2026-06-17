@@ -46,14 +46,54 @@ jobs:
           recursive: true
           ignore: "DL3007,DL3008,DL3018,DL4006,DL3041,DL3059"
 
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-matrix.outputs.services }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Detect Changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            catalog: 'src/catalog/**'
+            cart: 'src/cart/**'
+            checkout: 'src/checkout/**'
+            orders: 'src/orders/**'
+            ui: 'src/ui/**'
+            global:
+              - 'charts/**'
+              - 'local.sh'
+              - '.github/workflows/main.yml'
+
+      - name: Set Matrix Output
+        id: set-matrix
+        run: |
+          CHANGES='${{ steps.filter.outputs.changes }}'
+          if echo '${{ steps.filter.outputs.global }}' | grep -q 'true' || [ "$CHANGES" = '[]' ] || [ -z "$CHANGES" ]; then
+            echo "services=[\"catalog\", \"cart\", \"checkout\", \"orders\", \"ui\"]" >> $GITHUB_OUTPUT
+          else
+            # Filter out 'global' from the changes array to keep only service names
+            SERVICES=$(echo $CHANGES | jq -c 'map(select(. != "global"))')
+            if [ "$SERVICES" = '[]' ]; then
+              echo "services=[\"catalog\", \"cart\", \"checkout\", \"orders\", \"ui\"]" >> $GITHUB_OUTPUT
+            else
+              echo "services=${SERVICES}" >> $GITHUB_OUTPUT
+            fi
+          fi
+
   build-and-push:
     name: Build & Push to GHCR
-    needs: static-validation
+    needs: [static-validation, detect-changes]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [catalog, cart, checkout, orders, ui]
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -106,11 +146,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Kind Cluster and Setup Ingress
-        run: |
-          # Create cluster and install Ingress controller, but skip build, load, deploy, tests, status
-          ./local.sh create-cluster --skip-build --skip-deploy --skip-tests --skip-status
-
       - name: Pull and Load Images from GHCR
         run: |
           export PATH="$HOME/.local/bin:$PATH"
@@ -118,12 +153,20 @@ jobs:
           TAG="sha-${SHA_SHORT}"
           
           for service in catalog cart checkout orders ui; do
-            IMAGE_GHCR="ghcr.io/${{ github.repository }}/the-store-$service:${TAG}"
-            echo "Pulling $IMAGE_GHCR..."
-            docker pull $IMAGE_GHCR
+            IMAGE_GHCR_SHA="ghcr.io/${{ github.repository }}/the-store-$service:${TAG}"
+            IMAGE_GHCR_LATEST="ghcr.io/${{ github.repository }}/the-store-$service:latest"
+            
+            echo "Attempting to pull $IMAGE_GHCR_SHA..."
+            if docker pull $IMAGE_GHCR_SHA; then
+              IMAGE_TO_TAG=$IMAGE_GHCR_SHA
+            else
+              echo "$IMAGE_GHCR_SHA not found (likely not rebuilt in this commit). Pulling $IMAGE_GHCR_LATEST instead..."
+              docker pull $IMAGE_GHCR_LATEST
+              IMAGE_TO_TAG=$IMAGE_GHCR_LATEST
+            fi
             
             # Tag locally so local.sh Helm deployment can find it without GHCR credentials in Kind
-            docker tag $IMAGE_GHCR the-store-$service:${TAG}
+            docker tag $IMAGE_TO_TAG the-store-$service:${TAG}
             
             echo "Loading the-store-$service:${TAG} into Kind..."
             kind load docker-image the-store-$service:${TAG} --name the-store
@@ -160,8 +203,3 @@ jobs:
             fi
             exit 1
           fi
-
-      - name: Clean up Cluster
-        if: always()
-        run: |
-          ./local.sh delete-cluster

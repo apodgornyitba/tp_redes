@@ -73,7 +73,7 @@ orders:
     provider: in-memory
     messaging: in-memory
     dbUser: orders
-    dbPassword: cUNIa0hQOGZUcjk0Vkk2bg==
+    dbPassword: qNHkHP8fTr94VI6n
   service:
     type: ClusterIP
     port: 80
