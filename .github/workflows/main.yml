@@ -111,11 +111,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set GHCR image prefix (lowercase)
+        id: ghcr
+        run: echo "prefix=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/the-store-${{ matrix.service }}
+          images: ${{ steps.ghcr.outputs.prefix }}/the-store-${{ matrix.service }}
           tags: |
             type=sha,prefix=sha-,format=short
             type=raw,value=latest
@@ -146,15 +150,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set GHCR image prefix (lowercase)
+        id: ghcr
+        run: echo "prefix=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Pull and Load Images from GHCR
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           TAG="sha-${SHA_SHORT}"
+          GHCR_PREFIX="${{ steps.ghcr.outputs.prefix }}"
           
           for service in catalog cart checkout orders ui; do
-            IMAGE_GHCR_SHA="ghcr.io/${{ github.repository }}/the-store-$service:${TAG}"
-            IMAGE_GHCR_LATEST="ghcr.io/${{ github.repository }}/the-store-$service:latest"
+            IMAGE_GHCR_SHA="${GHCR_PREFIX}/the-store-$service:${TAG}"
+            IMAGE_GHCR_LATEST="${GHCR_PREFIX}/the-store-$service:latest"
             
             echo "Attempting to pull $IMAGE_GHCR_SHA..."
             if docker pull $IMAGE_GHCR_SHA; then
