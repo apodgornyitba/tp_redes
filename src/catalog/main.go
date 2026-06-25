@@ -60,7 +60,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	log.Println("TEST")
+	log.Println("TEST - poc1")
 
 	_, otelPresent := os.LookupEnv("OTEL_SERVICE_NAME")
 
